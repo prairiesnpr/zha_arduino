@@ -78,7 +78,7 @@ bool waitforResponse(uint8_t *val) {
       }
     } else {
       Serial.print(F("Exp AT got "));
-      Serial.print(xbee.getResponse().getApiId(), HEX);
+      Serial.println(xbee.getResponse().getApiId(), HEX);
     }
   } else {
     // at command failed
@@ -87,13 +87,13 @@ bool waitforResponse(uint8_t *val) {
       Serial.println(xbee.getResponse().getErrorCode());
     }
     else {
-      Serial.print(F("No rsp"));
+      Serial.println(F("No rsp"));
     }
   }
   return 0;
 }
 
-void sendAttributeWriteRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint8_t dst_ep,  uint8_t result) {
+void sendAttributeWriteRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint8_t dst_ep,  uint8_t result, uint8_t rqst_seq_id) {
   /*
     payload
     byte 0: frame control
@@ -111,8 +111,8 @@ void sendAttributeWriteRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep,
   */
   uint8_t payload_len = 4 + attr->val_len;
 
-  uint8_t pre[payload_len] = {0x00,
-                              cmd_seq_id,
+  uint8_t pre[payload_len] = {0x08,
+                              rqst_seq_id,
                               0x0b,
                               result,
                               0x00
@@ -127,8 +127,8 @@ void sendAttributeWriteRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep,
                                0x00,    //broadcast radius
                                0x00,    //option
                                t_payload, //payload
-                               sizeof(pre),
-                               //payload_len,    //payload length
+                               //sizeof(pre),
+                               payload_len,    //payload length
                                cmd_frame_id, // frame ID
                                src_ep,    //src endpoint
                                dst_ep,    //dest endpoint
@@ -170,8 +170,9 @@ void sendAttributeRpt(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
 
 
   uint8_t payload_len;
-  if (attr->type == ZCL_CHAR_STR){
-  //  payload_len = 7 + attr->val_len;
+  cmd_seq_id++;
+  if (attr->type == ZCL_CHAR_STR 
+     ){
     uint8_t pre[] = {0x00, 
                      cmd_seq_id,
                      0x0A, //Read attr resp
@@ -179,11 +180,10 @@ void sendAttributeRpt(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
                      static_cast<uint8_t>((attr->id & 0xFF00) >> 8),
                      attr->type,
                      attr->val_len,
-                     *attr->value
                     };
+    payload_len = sizeof(pre) + attr->val_len;
     memcpy(t_payload, pre, sizeof(pre));
-    payload_len = sizeof(pre);
-    //memcpy(t_payload + 7, attr->value, attr->val_len);
+    memcpy(t_payload + sizeof(pre), attr->value, attr->val_len);
   }
   else {
     uint8_t pre[] = {0x00,
@@ -192,11 +192,10 @@ void sendAttributeRpt(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
                      static_cast<uint8_t>((attr->id & 0x00FF) >> 0),
                      static_cast<uint8_t>((attr->id & 0xFF00) >> 8),
                      attr->type,
-                    // *attr->value
                     };
+    payload_len = sizeof(pre) + attr->val_len;
     memcpy(t_payload, pre, sizeof(pre));
     memcpy(t_payload + sizeof(pre), attr->value, attr->val_len);
-    payload_len = sizeof(pre) + attr->val_len;
   }
   
   cmd_frame_id = xbee.getNextFrameId();
@@ -223,11 +222,11 @@ void sendAttributeRpt(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
 }
 
 
-void sendAttributeRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint8_t dst_ep, uint8_t cmd) {
+void sendAttributeRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint8_t dst_ep, uint8_t cmd, uint8_t rqst_seq_id) {
   /*
     payload
     byte 0: frame control
-    byte 1 Seq
+    byte 1 Seq  *Looks like this should match request
     byte 2 cmd id
     byte 3-4: Attr Id
     byte 5: type
@@ -243,35 +242,32 @@ void sendAttributeRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
   uint8_t payload_len;
   if (attr->type == ZCL_CHAR_STR){
     payload_len = 8 + attr->val_len;
-    uint8_t pre[] = {0x00, 
-                     cmd_seq_id,
-                     cmd, //Read attr resp
-                     static_cast<uint8_t>((attr->id & 0x00FF) >> 0),
-                     static_cast<uint8_t>((attr->id & 0xFF00) >> 8),
-                     0x00,//status
+    uint8_t pre[] = {0x00, //frame control 
+                     rqst_seq_id,
+                     cmd, //cmd id
+                     static_cast<uint8_t>((attr->id & 0x00FF) >> 0), //attr id lsb
+                     static_cast<uint8_t>((attr->id & 0xFF00) >> 8), //attr id msb
+                     0x00,//status, 
                      attr->type,
                      attr->val_len,
                     };
     memcpy(t_payload, pre, sizeof(pre));
-    memcpy(t_payload + 8, attr->value, attr->val_len);
+    memcpy(t_payload + sizeof(pre), attr->value, attr->val_len);
   }
   else {
-    payload_len = 7 + attr->val_len;
     uint8_t pre[] = {0x00,
-                     cmd_seq_id,
+                     rqst_seq_id,
                      cmd, //Read attr resp
                      static_cast<uint8_t>((attr->id & 0x00FF) >> 0),
                      static_cast<uint8_t>((attr->id & 0xFF00) >> 8),
                      0x00,
                      attr->type,
                     };
+    payload_len = sizeof(pre) + attr->val_len;
     memcpy(t_payload, pre, sizeof(pre));
-    memcpy(t_payload + 7, attr->value, attr->val_len);
+    memcpy(t_payload + sizeof(pre), attr->value, attr->val_len); 
   }
   
-  // }
-
-
 
   cmd_frame_id = xbee.getNextFrameId();
   exp_tx = ZBExplicitTxRequest(COORDINATOR64,
@@ -279,7 +275,6 @@ void sendAttributeRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
                                0x00,    //broadcast radius
                                0x00,    //option
                                t_payload, //payload
-                               //sizeof(t_payload),
                                payload_len,    //payload length
                                cmd_frame_id, // frame ID
                                src_ep,    //src endpoint
@@ -292,7 +287,10 @@ void sendAttributeRsp(uint16_t cluster_id, attribute* attr, uint8_t src_ep, uint
   if (attr->type != 0) {
     xbee.send(exp_tx);
     Serial.println(F("Sent Attr Rsp"));
-
+    printPayload(t_payload, payload_len);
+  }
+  else {
+    Serial.println(F("Ignored Attr Rsp"));
   }
 }
 
@@ -364,7 +362,7 @@ void print_payload(uint8_t* payload, uint8_t len) {
   Serial.println();
 }
 
-void sendActiveEpResp() {
+void sendActiveEpResp(uint8_t rqst_cmd_seq_id) {
   /*
      byte 0 sequence number
      byte 1 status 00 success
@@ -375,7 +373,7 @@ void sendActiveEpResp() {
   cmd_frame_id = xbee.getNextFrameId();
   last_command = &sendActiveEpResp;
   uint8_t len_payload = 5 + NUM_ENDPOINTS;
-  uint8_t payload[len_payload] = {cmd_seq_id, //Has to match requesting packet
+  uint8_t payload[len_payload] = {rqst_cmd_seq_id, //Has to match requesting packet
                                   0x00,
                                   netAddr[1],
                                   netAddr[0],
@@ -418,7 +416,7 @@ void sendActiveEpResp() {
 
 }
 
-void sendSimpleDescRpt(uint8_t ep) {
+void sendSimpleDescRpt(uint8_t ep, uint8_t rqst_cmd_seq_id) {
   /*
      byte 0: Sequence number, match requesting packet
      byte 1: status 00= Success
@@ -429,7 +427,7 @@ void sendSimpleDescRpt(uint8_t ep) {
      byte 7-8: Device Type in little endian, 0x0007 is combined interface see page 51 of Zigbee HA profile
      byte 9: version number (App Dev)
      byte 10: Input Cluster Count
-     byte [] List of output clusters in little endian format
+     byte [] List of input clusters in little endian format
      byte n+1: Output Cluster Count
      byte [] List of output clusters in little endian format
   */
@@ -438,21 +436,25 @@ void sendSimpleDescRpt(uint8_t ep) {
 
   cmd_frame_id = xbee.getNextFrameId();
   uint8_t num_out = ENDPOINTS[(ep - 1)].GetNumOutClusters();  
-  uint8_t out_len = 0;
+  Serial.print(F("Out Clstrs: "));
+  Serial.println(num_out);
+  uint8_t out_len = 1;
   if (num_out > 0)
   {
      out_len = 2 *num_out + 1;
   }
   uint8_t num_in = ENDPOINTS[(ep - 1)].GetNumInClusters();  
-  uint8_t in_len = 0;
+  Serial.print(F("In Clstrs: "));
+  Serial.println(num_in);
+
+  uint8_t in_len = 1;
   if (num_in > 0)
   {
      in_len = 2 * num_in + 1;
   }
   uint8_t pre_len = 11;
-  uint8_t payload_len = pre_len + out_len + in_len;
 
-  uint8_t pre[] = {cmd_seq_id,
+  uint8_t pre[] = {rqst_cmd_seq_id,
                    0x00,
                    netAddr[1],
                    netAddr[0],
@@ -472,23 +474,27 @@ void sendSimpleDescRpt(uint8_t ep) {
   uint16_t in_cl[num_in];
   ENDPOINTS[(ep - 1)].GetInClusters(in_cl);
   build_payload_list(in_cl, 2 * num_in, in_clusters);
- 
+  Serial.println(F("In Clstr Pyld"));
+  printPayload(in_clusters, sizeof(in_clusters));
+   
   memcpy(t_payload + pre_len , in_clusters, sizeof(in_clusters));
 
   uint8_t out_clusters[out_len];
   uint16_t out_cl[num_out];
   ENDPOINTS[(ep - 1)].GetOutClusters(out_cl);
   build_payload_list(out_cl, 2 * num_out, out_clusters);
+  Serial.println(F("Out Clstr Pyld"));
+  printPayload(out_clusters, sizeof(out_clusters));
  
   memcpy(t_payload + pre_len + sizeof(in_clusters) , out_clusters, sizeof(out_clusters));
+  uint8_t payload_len = pre_len + sizeof(in_clusters) + sizeof(out_clusters);
 
   exp_tx = ZBExplicitTxRequest(COORDINATOR64,
                                UKN_NET_ADDR,
                                0x00,    //broadcast radius
                                0x00,    //option
                                t_payload, //payload
-                               sizeof(t_payload),
-                               //payload_len,    //payload length
+                               payload_len,    //payload length
                                cmd_frame_id, // frame ID
                                0x00,    //src endpoint
                                0x00,    //dest endpoint
@@ -501,7 +507,7 @@ void sendSimpleDescRpt(uint8_t ep) {
   Serial.print(F("Send Smpl Desc Rpt: "));
   Serial.println(ep, HEX);
 
-  printPayload(t_payload, sizeof(t_payload));
+  printPayload(t_payload, payload_len);
 }
 
 void sendBasicClusterResp() {
@@ -510,7 +516,7 @@ void sendBasicClusterResp() {
 
 void getNetAddr() {
   AtCommandRequest atRequest = AtCommandRequest();
-  atRequest.setCommand((uint8_t*)netCmd); //breaking(uint8_t*)at
+  atRequest.setCommand((uint8_t*)netCmd);
   xbee.send(atRequest);
 }
 

@@ -25,6 +25,7 @@
 #define BINARY_INPUT_CLUSTER_ID 0x000f
 #define IAS_ZONE_CLUSTER_ID 0x0500
 #define METERING_CLUSTER_ID 0x0702
+#define COLOR_CLUSTER_ID 0x0300
 
 //Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
@@ -37,13 +38,25 @@
 #define ZCL_UINT8_T 0x20
 #define ZCL_UINT16_T 0x21
 #define ZCL_BOOL 0x10
+#define ZCL_ENUM8 0x30
+#define ZCL_ENUM16 0x31
+#define ZCL_MAP8 0x18
+#define ZCL_MAP16 0x19
+
 
 //Device
 #define ON_OFF_LIGHT 0x0100
 #define DIMMABLE_LIGHT 0x0101
+#define COLOR_LIGHT 0x0102
 #define TEMPERATURE_SENSOR 0x0302
 #define ON_OFF_OUTPUT 0x0002
 #define IAS_ZONE 0x0402
+#define ON_OFF_SENSOR 0x0850
+
+//Attributes
+#define ATTR_CURRENT_X 0x0002
+#define ATTR_CURRENT_Y 0x0003
+#define ATTR_CURRENT_CT_MRDS 0x0006
 
 class attribute
 {
@@ -55,9 +68,8 @@ class attribute
     attribute(uint16_t a_id, uint8_t* a_value, uint8_t a_val_len, uint8_t a_type)
     {
       id = a_id;
-      value =  new uint8_t[a_val_len];
+      value = new uint8_t[a_val_len];
       memcpy(value, a_value, a_val_len);
-      //value = a_value;
       val_len = a_val_len;
       type = a_type;
     }
