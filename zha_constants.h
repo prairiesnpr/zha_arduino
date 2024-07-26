@@ -35,7 +35,7 @@
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
 
 // Data Types
-#define ZCL_INT16 0x09
+#define ZCL_INT16_T 0x09
 #define ZCL_CHAR_STR 0x42
 #define ZCL_UINT8_T 0x20
 #define ZCL_UINT16_T 0x21
