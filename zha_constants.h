@@ -34,7 +34,8 @@
 // Output
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
 
-// Data Type
+// Data Types
+#define ZCL_INT16 0x09
 #define ZCL_CHAR_STR 0x42
 #define ZCL_UINT8_T 0x20
 #define ZCL_UINT16_T 0x21
@@ -81,11 +82,34 @@ public:
     val_len = a_val_len;
     type = a_type;
   }
-  
-  void SetValue(uint8_t *new_value) {
-    memcpy(value, new_value, val_len);
+
+  void SetValue(uint32_t new_value)
+  {
+    for (uint8_t i = 0; i < val_len; i++)
+    {
+      value[i] = ((uint32_t)new_value >> (i * 8)) & 0xff;
+    }
   }
-  
+
+  uint32_t GetIntValue()
+  {
+    if (val_len == 1)
+    {
+      return (uint32_t)value[0];
+    }
+    if (val_len == 2)
+    {
+      return (uint32_t)value[0] | ((uint32_t)value[1] << 8);
+    }
+    if (val_len == 3)
+    {
+      return (uint32_t)value[0] | ((uint32_t)value[1] << 8) | ((uint32_t)value[2] << 16);
+    }
+    if (val_len == 4)
+    {
+      return (uint32_t)value[0] | ((uint32_t)value[1] << 8) | ((uint32_t)value[2] << 16) | ((uint32_t)value[3] << 24);
+    }
+  }
 };
 
 class Cluster
