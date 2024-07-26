@@ -35,7 +35,7 @@
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
 
 // Data Types
-#define ZCL_INT16_T 0x09
+#define ZCL_INT16_T 0x29 //Signed Analog
 #define ZCL_CHAR_STR 0x42
 #define ZCL_UINT8_T 0x20
 #define ZCL_UINT16_T 0x21
@@ -55,8 +55,8 @@
 #define ON_OFF_SENSOR 0x0850
 
 // Attributes
-#define ATTR_CURRENT_X 0x0002
-#define ATTR_CURRENT_Y 0x0003
+#define ATTR_CURRENT_X 0x0003
+#define ATTR_CURRENT_Y 0x0004
 #define ATTR_CURRENT_CT_MRDS 0x0006
 
 // Define Steps
