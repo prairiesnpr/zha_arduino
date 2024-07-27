@@ -13,7 +13,7 @@
 #define SIMPLE_DESC_RQST 0x0004
 #define READ_ATTRIBUTES 0x0000
 
-// Input
+// Input Clusters
 #define BASIC_CLUSTER_ID 0x0000
 #define IDENTIFY_CLUSTER_ID 0x0003
 #define GROUPS_CLUSTER_ID 0x0004
@@ -25,11 +25,20 @@
 #define HUMIDITY_CLUSTER_ID 0x405
 #define BINARY_INPUT_CLUSTER_ID 0x000f
 #define IAS_ZONE_CLUSTER_ID 0x0500
-#define METERING_CLUSTER_ID 0x0702
+#define METERING_CLUSTER_ID 0x0702  //Smart Energy Metering
 #define COLOR_CLUSTER_ID 0x0300
+#define ELECTRICAL_MEASUREMENT 0x0b04
 
 // Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
+#define RMS_CURRENT 0x0508
+#define AC_FREQUENCY 0x0300
+#define AC_FREQUENCY_MAX 0x0302
+#define RMS_VOLTAGE 0x0505
+#define RMS_VOLTAGE_MAX 0x0507
+#define MEASUREMENT_TYPE 0x0000
+#define MANUFACTURER_ATTR 0x0004
+#define MODEL_ATTR 0x0005
 
 // Output
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
@@ -44,6 +53,7 @@
 #define ZCL_ENUM16 0x31
 #define ZCL_MAP8 0x18
 #define ZCL_MAP16 0x19
+#define ZCL_MAP32 0x1b
 
 // Device
 #define ON_OFF_LIGHT 0x0100
@@ -58,6 +68,8 @@
 #define ATTR_CURRENT_X 0x0003
 #define ATTR_CURRENT_Y 0x0004
 #define ATTR_CURRENT_CT_MRDS 0x0006
+
+
 
 // Define Steps
 #define START 0
