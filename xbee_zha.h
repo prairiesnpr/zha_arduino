@@ -17,7 +17,6 @@ void zbTxStatusResp(ZBTxStatusResponse &resp, uintptr_t)
 
     if (resp.getFrameId() == zha.cmd_frame_id)
     {
-      //zha.last_command();
       if (zha.dev_status == DEV_ANN){
         zha.sendDevAnnounce();
       }
@@ -35,7 +34,6 @@ void otherResp(XBeeResponse &resp, uintptr_t)
 
 void atCmdResp(AtCommandResponse &resp, uintptr_t)
 {
-  // Serial.println(F("At resp"));
   if (resp.getStatus() == AT_OK)
   {
     if (resp.getCommand()[0] == assocCmd[0] &&
@@ -54,13 +52,13 @@ void atCmdResp(AtCommandResponse &resp, uintptr_t)
     else if (resp.getCommand()[0] == netCmd[0] &&
             resp.getCommand()[1] == netCmd[1])
     {
-      if (zha.netAddr[0] != 0xff && zha.netAddr[1] != 0xFE)
+      if (zha.netAddr != 0xFFFE)
       {
-        zha.netAddr[0] = resp.getValue()[0];
-        zha.netAddr[1] = resp.getValue()[1];
+        memcpy(&zha.netAddr, resp.getValue(), 2);
+        zha.netAddr = SWAP_UINT16(zha.netAddr);
         Serial.print(F("NWK: 0x"));
-        Serial.print(zha.netAddr[0], HEX);
-        Serial.println(zha.netAddr[1], HEX);
+        Serial.print(resp.getValue()[0], HEX);
+        Serial.println(resp.getValue()[1], HEX);
         cur_step_cmp = 1;
       }
     }
@@ -74,5 +72,3 @@ void atCmdResp(AtCommandResponse &resp, uintptr_t)
     Serial.println(F("AT Fail"));
   }
 }
-
-//zha.registerCallbacks(atCmdResp, zbTxStatusResp, otherResp);
