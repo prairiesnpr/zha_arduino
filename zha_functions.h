@@ -35,10 +35,13 @@ public:
   uint8_t cmd_frame_id;
   uint16_t netAddr;
   uint8_t seqID;
+  void (*zha_clstr_cb)(ZBExplicitRxResponse &erx);
+  void (*zha_write_attr_cb)(ZBExplicitRxResponse &erx);
 
   void Start(
       Stream &serial,
-      void (*zdo_callback)(ZBExplicitRxResponse &erx, uintptr_t),
+      void (*zha_clstr_callback)(ZBExplicitRxResponse &erx),
+      void (*zha_write_attr_callback)(ZBExplicitRxResponse &erx),
       uint8_t NumEndpoints,
       Endpoint *EndpointsAddr
 
@@ -47,6 +50,8 @@ public:
 
     num_endpoints = NumEndpoints;
     endpoints = EndpointsAddr;
+    this->zha_clstr_cb = zha_clstr_callback;
+    this->zha_write_attr_cb = zha_write_attr_callback;
 
     xbee.setSerial(serial);
 
@@ -54,18 +59,18 @@ public:
     Serial.print(F("LCL Add: "));
     printAddr(macAddr.Get());
 
-    xbee.onZBExplicitRxResponse(zdo_callback);
-
     enabled = 1;
   }
   void registerCallbacks(
       void (*at_callback)(AtCommandResponse &erx, uintptr_t),
       void (*cmd_callback)(ZBTxStatusResponse &erx, uintptr_t),
-      void (*other_callback)(XBeeResponse &erx, uintptr_t))
+      void (*other_callback)(XBeeResponse &erx, uintptr_t),
+      void (*zdo_callback)(ZBExplicitRxResponse &erx, uintptr_t))
   {
     xbee.onZBTxStatusResponse(cmd_callback);
     xbee.onAtCommandResponse(at_callback);
     xbee.onOtherResponse(other_callback);
+    xbee.onZBExplicitRxResponse(zdo_callback);
   }
   void getMAC()
   {
@@ -565,7 +570,7 @@ private:
                                                      dst_ep,       // dest endpoint
                                                      cluster_id,   // cluster ID
                                                      profile_id    // profile ID
-                                                     
+
     );
 
     xbee.send(exp_tx);
