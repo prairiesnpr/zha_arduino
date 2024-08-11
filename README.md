@@ -5,3 +5,4 @@
 - [Door Bell Sensor with Temp and Humidity](https://github.com/prairiesnpr/xbee_door_bell)
 - [Water Heater Controller with Inlet and Outlet Temp](https://github.com/prairiesnpr/zha_water_heater)
 - [Gun Safe Controller with Temp, Humidity, Binary Input, IAS, and RGB LED](https://github.com/prairiesnpr/gun_safe)
+- [Pet Feeder Conversion with Binary Input, Analog Input, Analog Output, and Multistate Input](https://github.com/prairiesnpr/xbee_dog_feeder)
