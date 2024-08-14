@@ -5,12 +5,13 @@
 // Used to keep SRAM down
 #define ZCL_HDR_LEN 6
 
+
 // Device Type
 constexpr uint8_t MAINS_PWR_DEV = 0x8c;
 
 // Frame Control
-#define FRAME_CTRL_GLBL 0b00001000
-#define FRAME_CTRL_CLSTR 0b01001000
+#define FRAME_CTRL_GLBL 0b00011000
+#define FRAME_CTRL_CLSTR 0b01011000
 
 #define UKN_NET_ADDR 0xFFFE
 // #define HA_PROFILE_ID 0x0104
@@ -36,25 +37,28 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define CFG_RPT_RESP 0x07
 
 // Command resp
-#define WRITE_ATTR_RSP_CMD 0x0b
+#define ATTR_RSP_CMD 0x0b
 
 // Input Clusters
-#define BASIC_CLUSTER_ID 0x0000
+#define BASIC_CLUSTER_ID 0x0000 //server
 #define IDENTIFY_CLUSTER_ID 0x0003
-#define GROUPS_CLUSTER_ID 0x0004
-#define SCENES_CLUSTER_ID 0x0005
-#define ON_OFF_CLUSTER_ID 0x0006
-#define LEVEL_CONTROL_CLUSTER_ID 0x0008
+#define GROUPS_CLUSTER_ID 0x0004 //server
+#define SCENES_CLUSTER_ID 0x0005 //server
+#define ON_OFF_CLUSTER_ID 0x0006 //server
+#define ON_OF_SWITCH_CLUSTER_ID 0x0007 //server
+#define LEVEL_CONTROL_CLUSTER_ID 0x0008 //server
 #define LIGHT_LINK_CLUSTER_ID 0x1000
-#define TEMP_CLUSTER_ID 0x0402
-#define HUMIDITY_CLUSTER_ID 0x405
-#define BINARY_INPUT_CLUSTER_ID 0x000f
-#define IAS_ZONE_CLUSTER_ID 0x0500
-#define METERING_CLUSTER_ID 0x0702 // Smart Energy Metering
-#define COLOR_CLUSTER_ID 0x0300
-#define ELECTRICAL_MEASUREMENT 0x0b04
-#define ANALOG_IN_CLUSTER_ID 0x000c
-#define ANALOG_OUT_CLUSTER_ID 0x000d
+#define TEMP_CLUSTER_ID 0x0402 //server
+#define HUMIDITY_CLUSTER_ID 0x405 //server
+#define BINARY_INPUT_CLUSTER_ID 0x000f //server
+#define IAS_ZONE_CLUSTER_ID 0x0500 //server
+#define METERING_CLUSTER_ID 0x0702 // Smart Energy Metering //server
+#define COLOR_CLUSTER_ID 0x0300 //server
+#define ELECTRICAL_MEASUREMENT 0x0b04 //server
+#define ANALOG_IN_CLUSTER_ID 0x000c //server
+#define ANALOG_OUT_CLUSTER_ID 0x000d //server
+#define MULTISTATE_IN_CLUSTER_ID 0x0012 //server 
+
 
 // Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
@@ -78,7 +82,9 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define DESCRIPTION_ATTR 0x001C
 #define MAX_PV_ATTR 0x0041
 #define MIN_PV_ATTR 0x0045
-
+#define NUM_OF_STATES 0x004A
+#define DESCRIPTION_ATTR 0x001C
+#define STATE_TEXT_ATTR 0x000E
 // Output
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
 
@@ -94,6 +100,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ZCL_MAP16 0x19
 #define ZCL_MAP32 0x1b
 #define ZCL_SINGLE 0x39
+#define ZCL_ARRAY 0x48  //Length 2+sum of length of contents , first element is 2byte uint for num elements 
 
 // Device
 #define ON_OFF_LIGHT 0x0100
@@ -103,7 +110,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ON_OFF_OUTPUT 0x0002
 #define IAS_ZONE 0x0402
 #define ON_OFF_SENSOR 0x0850
-
+#define COMBINED_INTERFACE 0x0007
 // Attributes
 #define ATTR_CURRENT_X 0x0003
 #define ATTR_CURRENT_Y 0x0004
@@ -130,6 +137,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 
 #define SWAP_UINT16(x) (((x) >> 8) | ((x) << 8))
 #define SWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
+
 
 class attribute
 {
@@ -168,7 +176,7 @@ public:
 
   uint32_t GetIntValue(uint8_t pr = 0x01)
   {
-    uint32_t res_int;
+    uint32_t res_int = 0;
     if (val_len == 1)
     {
       res_int = (uint32_t)value[0];
@@ -187,7 +195,7 @@ public:
     }
     if (pr)
     {
-      Serial.print(F("Int: "));
+      Serial.print(F(" "));
       Serial.println(res_int, HEX);
     }
     return res_int;
@@ -206,6 +214,8 @@ public:
     this->SetValue(int_res);
   }
 };
+
+attribute empty_res_attr = attribute(0, 0, 0, 0, 0x01);
 
 class Cluster
 {
@@ -243,7 +253,7 @@ public:
     }
     Serial.print(F("Attr Not Found: "));
     Serial.println(attr_id, HEX);
-    return &attribute{0, 0, 0, 0};
+    return &empty_res_attr;
   }
 };
 
@@ -304,6 +314,7 @@ public:
     }
     Serial.print(F("No Cl "));
     Serial.println(cl_id, HEX);
+    return 0x00;
   }
   Cluster GetCluster(uint16_t cl_id)
   {
@@ -316,6 +327,7 @@ public:
     }
     Serial.print(F("No Cl "));
     Serial.println(cl_id, HEX);
+    return in_clusters[0]; // Also probably a mistake
   }
   void FillInCluster(uint8_t *buffer, uint8_t buf_start)
   {

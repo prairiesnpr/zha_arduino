@@ -73,37 +73,50 @@ void atCmdResp(AtCommandResponse &resp, uintptr_t)
     Serial.println(F("AT Fail"));
   }
 }
+void printDiagnostic(ZBExplicitRxResponse &erx)
+{
+  Serial.print(F("ZDO: EP: "));
+  Serial.print(erx.getDstEndpoint());
+  Serial.print(F(", Clstr: "));
+  Serial.print(erx.getClusterId(), HEX);
+  Serial.print(F(" Cmd Id: "));
+  Serial.print(erx.getFrameData()[erx.getDataOffset() + 2], HEX);
+  Serial.print(F(" FrmCtl: "));
+  Serial.print(erx.getFrameData()[erx.getDataOffset()], BIN);
+  Serial.print(F(" Dir: "));
+  if ((erx.getFrameData()[erx.getDataOffset()] >> 3) & 1)
+  {
+    Serial.println(F("Clnt"));
+  }
+  else
+  {
+    Serial.println(F("Srv"));
+  }
+  zha.print_payload(erx.getFrameData(), erx.getFrameDataLength());
 
+}
 void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
 {
   // Create a reply packet containing the same data
-  // This directly reuses the rx data array, which is ok since the tx
-  // packet is sent before any new response is received
+  Serial.println(F("ZDO Cmd"));
+  printDiagnostic(erx);
 
-  if (erx.getRemoteAddress16() == 0)
+  if (erx.getRemoteAddress16() == 0) // Why did I care about this again?
   {
     zha.cmd_seq_id = erx.getFrameData()[erx.getDataOffset() + 1];
     Serial.print(F("Cmd Seq: "));
     Serial.println(zha.cmd_seq_id);
 
     uint8_t cmd_id = erx.getFrameData()[erx.getDataOffset() + 2];
-    if (erx.getDstEndpoint() == 0x00)
-    {
-      // ZDO Command
-      Serial.print(F("ZDO Cmd: "));
-      for (uint8_t i; i < erx.getFrameDataLength(); i++)
-      {
-        Serial.print(erx.getFrameData()[i], HEX);
-        Serial.print(F(" "));
-      }
-      Serial.println();
-    }
+
     if (erx.getFrameData()[erx.getDataOffset()] & 0x03) // frame type
     {
+      // Cluster command, pass to app
       zha.zha_clstr_cb(erx);
     }
     else
     {
+      // Handle global commands here
       Serial.println(F("Glbl Cmd"));
 
       Endpoint end_point = zha.GetEndpoint(erx.getDstEndpoint());
@@ -172,28 +185,11 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
       else
       {
         // Unsupported Global Command
-        Serial.print(F("Unsupported Cmd ID: "));
+        Serial.print(F("Unsprt Cmd ID: "));
         Serial.println(cmd_id, HEX);
       }
     }
-    uint8_t frame_direction = (erx.getFrameData()[erx.getDataOffset()] >> 3) & 1;
-    if (frame_direction)
-    {
-      Serial.println(F("Srv to Client"));
-    }
-    else
-    {
-      Serial.println(F("Client to Srv"));
-    }
-    Serial.print(F("ZDO: EP: "));
-    Serial.print(erx.getDstEndpoint());
-    Serial.print(F(", Clstr: "));
-    Serial.print(erx.getClusterId(), HEX);
-    Serial.print(F(" Cmd Id: "));
-    Serial.print(cmd_id, HEX);
-    Serial.print(F(" FrmCtl: "));
-    Serial.println(erx.getFrameData()[erx.getDataOffset()], BIN);
-
+    
     if (erx.getClusterId() == ACTIVE_EP_RQST)
     {
       // Have to match sequence number in response
@@ -211,5 +207,10 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
       Serial.println(ep_msg, HEX);
       zha.sendSimpleDescRpt(ep_msg, erx.getFrameData()[erx.getDataOffset()]);
     }
+  }
+  else
+  {
+    // Not from coordinator?
+    Serial.println(F("Rcv Non Cdr Msg"));
   }
 }

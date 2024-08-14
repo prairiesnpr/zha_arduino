@@ -76,7 +76,7 @@ public:
   {
     uint8_t msb[4];
     uint8_t lsb[4];
-    AtCommandResponse atResponse = AtCommandResponse();
+    // AtCommandResponse atResponse = AtCommandResponse();
     AtCommandRequest atRequest = AtCommandRequest();
     bool success = 0;
     while (success == 0)
@@ -137,6 +137,7 @@ public:
         return endpoints[i];
       }
     }
+    return endpoints[0]; // hmm, seems bad
   }
   void sendActiveEpResp(uint8_t cmd_seq_id)
   {
@@ -191,6 +192,70 @@ public:
     this->sendZHACmd(buffer, buffer_len, 0x00, 0x00, 0x0013, 0xFFFD, 0x0000);
   }
 
+  void sendAttributeRptMult(Cluster *cluster, uint16_t *attr_ids, uint8_t attridlen, uint8_t src_ep, uint8_t dst_ep)
+  {
+
+    /*
+      payload
+      byte 0: frame control
+      byte 1 Seq
+      byte 2 cmd id
+      byte 3-4: Attr Id
+      byte 5: type
+      bytes[] value in little endian
+      -----------------------------
+      CMDS: 0x0A Report Attr
+            0x01 Read Attr Response
+            0x0D Discover Attributes Response
+            0x04 Write Attr Response
+      **   **
+    */
+
+    cmd_seq_id++;
+
+    uint8_t buffer_len = 3; // 3 byte ZCL header
+
+    uint8_t header_buffer[3];
+
+    this->BuildZCLHeader(header_buffer, cmd_seq_id, REPORT_ATTRIBUTES);
+
+    for (uint8_t i = 0; i < attridlen; i++)
+    {
+      uint8_t attr_rpt_len = 3; // 2 bytes for attrid + 1 byte for the data type
+      attribute *attr = cluster->GetAttr(attr_ids[i]);
+      attr_rpt_len += attr->val_len;
+      buffer_len += attr_rpt_len;
+    }
+
+    uint8_t buffer[buffer_len];
+    uint8_t bufpos = 3;
+
+    for (uint8_t i = 0; i < attridlen; i++)
+    {
+      attribute *attr = cluster->GetAttr(attr_ids[i]);
+      memset(buffer + bufpos, static_cast<uint8_t>((attr->id & 0x00FF) >> 0), 1);     // attr id lsb
+      memset(buffer + bufpos + 1, static_cast<uint8_t>((attr->id & 0xFF00) >> 8), 1); // attr id msb
+      memset(buffer + bufpos + 2, attr->type, 1);
+      bufpos += 3;
+      if (attr->type == ZCL_CHAR_STR)
+      {
+        memcpy(buffer + bufpos, &attr->val_len, 1); // Need to add the length of the string
+        memcpy(buffer + bufpos + 1, attr->value, attr->val_len);
+        bufpos+=(1+attr->val_len);
+      }
+      else
+      {
+        memcpy(buffer + bufpos, attr->value, attr->val_len);
+        bufpos+=(1+attr->val_len);
+      }
+    }
+
+
+    cmd_frame_id = xbee.getNextFrameId();
+
+      Serial.println(F("Sent Mult Attr Rpt"));
+      this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
+  }
   void sendAttributeRpt(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep)
   {
 
@@ -243,7 +308,7 @@ public:
     atRequest.setCommand((uint8_t *)assocCmd);
     xbee.send(atRequest);
   }
-  void sendAttributeWriteRsp(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep, uint8_t result, uint8_t rqst_seq_id)
+  void sendAttributeCmdRsp(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep, uint8_t result, uint8_t rqst_seq_id)
   {
     /*
       Byte 0-2: ZCL Header
@@ -255,9 +320,39 @@ public:
 
     uint8_t buffer_len = 5;
     uint8_t buffer[buffer_len];
-    this->BuildZCLHeader(buffer, rqst_seq_id, WRITE_ATTR_RSP_CMD, 0x00);
+    this->BuildZCLHeader(buffer, rqst_seq_id, ATTR_RSP_CMD, 0x00);
     memcpy(buffer + 3, &result, 1);
     memset(buffer + 4, CMD_SUCCESS, 1);
+
+    cmd_frame_id = xbee.getNextFrameId();
+
+    if (attr->type != 0)
+    {
+      Serial.print(F("Sent Attr Write Rsp: "));
+      Serial.print(F(" Src EP: "));
+      Serial.print(src_ep);
+      Serial.print(F(" Dst EP: "));
+      Serial.print(dst_ep);
+      Serial.print(F(" Clstr ID: "));
+      Serial.println(cluster_id);
+      this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
+    }
+  }
+  void sendAttributeWriteResp(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep, uint8_t result, uint8_t rqst_seq_id)
+  {
+    /*
+      Byte 0-2: ZCL Header
+      Byte 3: write attr resp status record
+
+       ** Tested **
+
+    */
+
+    uint8_t buffer_len = 4;
+    uint8_t buffer[buffer_len];
+    this->BuildZCLHeader(buffer, rqst_seq_id, WRITE_ATTR_RESP, 0x00);
+    // memcpy(buffer + 3, &result, 1);
+    memset(buffer + 3, CMD_SUCCESS, 1);
 
     cmd_frame_id = xbee.getNextFrameId();
 
@@ -407,6 +502,22 @@ public:
     Serial.println(ep, HEX);
     this->sendZHACmd(buffer, buffer_len, 0x00, 0x00, SIMPLE_DESC_RSP, UKN_NET_ADDR, 0x0000);
   }
+  void print_payload(uint8_t *payload, uint8_t len)
+  {
+    Serial.print(F("PLD: "));
+    for (uint8_t i = 0; i < len; i++)
+    {
+      if (i == 0)
+      {
+        Serial.print(*payload, HEX);
+      }
+      else
+      {
+        Serial.print(*(payload + i), HEX);
+      }
+    }
+    Serial.println();
+  }
 
 private:
   void
@@ -481,22 +592,7 @@ private:
     }
     return 0;
   }
-  void print_payload(uint8_t *payload, uint8_t len)
-  {
-    Serial.print(F("PLD: "));
-    for (uint8_t i = 0; i < len; i++)
-    {
-      if (i == 0)
-      {
-        Serial.print(*payload, HEX);
-      }
-      else
-      {
-        Serial.print(*(payload + i), HEX);
-      }
-    }
-    Serial.println();
-  }
+
   uint32_t packArray(uint8_t *val)
   {
     uint32_t res = 0;
@@ -512,7 +608,7 @@ private:
      byte 0: Frame control
        bits 0-1: Frame Type (Global 0b00, Cluster 0b01)
        bit 2: Manu Specific 0 for not included
-       bit 3: Direction 0 for client
+       bit 3: Direction 0 for client (all currently implemented attributes are server to client, so hardcoded here)
        bit 4: Disable Def Response, 1 no resp if no error
        bit 5-7 Reserved
        So, we will always send
