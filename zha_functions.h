@@ -2,6 +2,9 @@
 #include "zha_constants.h"
 #include <XBee.h>
 
+bool *cmd_result;
+bool cur_step_cmp = 1;
+
 uint64_t SWAP_UINT64(uint64_t num)
 {
   uint64_t byte0, byte1, byte2, byte3, byte4, byte5, byte6, byte7;
@@ -15,9 +18,6 @@ uint64_t SWAP_UINT64(uint64_t num)
   byte7 = (num & 0xFF00000000000000) >> 56;
   return ((byte0 << 56) | (byte1 << 48) | (byte2 << 40) | (byte3 << 32) | (byte4 << 24) | (byte5 << 16) | (byte6 << 8) | (byte7 << 0));
 }
-
-bool *cmd_result;
-bool cur_step_cmp = 1;
 
 class XbeeZha
 {
@@ -210,7 +210,10 @@ public:
             0x04 Write Attr Response
       **   **
     */
-
+    //\x18\xA8\x0A ZCL HEADER
+    
+    //\x03\x00\x21\x30\xA8
+    //\x00\x04\x00\x21\x55
     cmd_seq_id++;
 
     uint8_t buffer_len = 3; // 3 byte ZCL header
@@ -222,17 +225,20 @@ public:
     for (uint8_t i = 0; i < attridlen; i++)
     {
       uint8_t attr_rpt_len = 3; // 2 bytes for attrid + 1 byte for the data type
-      attribute *attr = cluster->GetAttr(attr_ids[i]);
+      attribute *attr;
+      uint8_t attr_exists = cluster->GetAttr(&attr, attr_ids[i]);
       attr_rpt_len += attr->val_len;
       buffer_len += attr_rpt_len;
     }
 
     uint8_t buffer[buffer_len];
+    memset(buffer, 0x00, buffer_len);
+    memcpy(buffer, header_buffer, 3);
     uint8_t bufpos = 3;
-
     for (uint8_t i = 0; i < attridlen; i++)
     {
-      attribute *attr = cluster->GetAttr(attr_ids[i]);
+      attribute *attr;
+      uint8_t attr_exists = cluster->GetAttr(&attr, attr_ids[i]);
       memset(buffer + bufpos, static_cast<uint8_t>((attr->id & 0x00FF) >> 0), 1);     // attr id lsb
       memset(buffer + bufpos + 1, static_cast<uint8_t>((attr->id & 0xFF00) >> 8), 1); // attr id msb
       memset(buffer + bufpos + 2, attr->type, 1);
@@ -241,20 +247,20 @@ public:
       {
         memcpy(buffer + bufpos, &attr->val_len, 1); // Need to add the length of the string
         memcpy(buffer + bufpos + 1, attr->value, attr->val_len);
-        bufpos+=(1+attr->val_len);
+        bufpos += (1 + attr->val_len);
       }
       else
       {
         memcpy(buffer + bufpos, attr->value, attr->val_len);
-        bufpos+=(1+attr->val_len);
+        bufpos += (attr->val_len);
       }
     }
-
+    this->print_payload(buffer, buffer_len);
 
     cmd_frame_id = xbee.getNextFrameId();
 
-      Serial.println(F("Sent Mult Attr Rpt"));
-      this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
+    Serial.println(F("Sent Mult Attr Rpt"));
+    this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
   }
   void sendAttributeRpt(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep)
   {

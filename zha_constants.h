@@ -115,6 +115,10 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ATTR_CURRENT_X 0x0003
 #define ATTR_CURRENT_Y 0x0004
 #define ATTR_CURRENT_CT_MRDS 0x0006
+#define ATTR_COLOR_CAP 0x400A
+#define ATTR_COLOR_MODE 0x0008
+#define ATTR_COLOR_OPT 0x000F
+#define ATTR_ENH_COLOR_MODE 0x4001
 
 // Define Steps
 #define START 0
@@ -138,6 +142,16 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define SWAP_UINT16(x) (((x) >> 8) | ((x) << 8))
 #define SWAP_UINT32(x) (((x) >> 24) | (((x) & 0x00FF0000) >> 8) | (((x) & 0x0000FF00) << 8) | ((x) << 24))
 
+// ieee high
+constexpr uint8_t shCmd[] = {'S', 'H'};
+// ieee low
+constexpr uint8_t slCmd[] = {'S', 'L'};
+// association status
+constexpr uint8_t assocCmd[] = {'A', 'I'};
+// panID
+constexpr uint8_t netCmd[] = {'M', 'Y'};
+
+XBeeAddress64 COORDINATOR64 = XBeeAddress64(0, 0);
 
 class attribute
 {
@@ -215,7 +229,6 @@ public:
   }
 };
 
-attribute empty_res_attr = attribute(0, 0, 0, 0, 0x01);
 
 class Cluster
 {
@@ -242,18 +255,20 @@ public:
     }
     return 0x00;
   }
-  attribute *GetAttr(uint16_t attr_id)
+  bool GetAttr(attribute **attr, uint16_t attr_id)
   {
     for (uint8_t i = 0; i < num_attr; i++)
     {
-      if (attributes[i].id == attr_id)
+      if (this->attributes[i].id == attr_id)
       {
-        return &attributes[i];
+        *attr = &this->attributes[i];
+        return 0x01;
+        //return &attributes[i];
       }
     }
     Serial.print(F("Attr Not Found: "));
     Serial.println(attr_id, HEX);
-    return &empty_res_attr;
+    return 0x00;
   }
 };
 
@@ -373,13 +388,3 @@ public:
   }
 };
 
-// ieee high
-constexpr uint8_t shCmd[] = {'S', 'H'};
-// ieee low
-constexpr uint8_t slCmd[] = {'S', 'L'};
-// association status
-constexpr uint8_t assocCmd[] = {'A', 'I'};
-// panID
-constexpr uint8_t netCmd[] = {'M', 'Y'};
-
-XBeeAddress64 COORDINATOR64 = XBeeAddress64(0, 0);

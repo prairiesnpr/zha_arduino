@@ -135,10 +135,12 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
             Serial.print(F("Rd Att: "));
             Serial.println(cur_attr_id, HEX);
 
-            if (end_point.GetCluster(erx.getClusterId()).AttributeExists(cur_attr_id))
+            attribute *attr;
+            uint8_t attr_exists = end_point.GetCluster(erx.getClusterId()).GetAttr(&attr, cur_attr_id);
+
+            if(attr_exists)
             {
               // Exists
-              attribute *attr = end_point.GetCluster(erx.getClusterId()).GetAttr(cur_attr_id);
               zha.sendAttributeRsp(erx.getClusterId(), attr, erx.getDstEndpoint(), 0x01, 0x01, zha.cmd_seq_id);
             }
             else
