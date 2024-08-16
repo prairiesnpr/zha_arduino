@@ -6,3 +6,4 @@
 - [Water Heater Controller with Inlet and Outlet Temp](https://github.com/prairiesnpr/zha_water_heater)
 - [Gun Safe Controller with Temp, Humidity, Binary Input, IAS, and RGB LED](https://github.com/prairiesnpr/gun_safe)
 - [Pet Feeder Conversion with Binary Input, Analog Input, Analog Output, and Multistate Input](https://github.com/prairiesnpr/xbee_dog_feeder)
+- [Bed Presence Sensor with Temp, Humidity, Binary Input, Analog Output, Analog Input, and Color / Level Control Light](https://github.com/prairiesnpr/xbee_bed_multisensor)
