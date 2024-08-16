@@ -7,13 +7,19 @@ void zbTxStatusResp(ZBTxStatusResponse &resp, uintptr_t)
   if (resp.isSuccess())
   {
     Serial.println(F("TX OK"));
-    *cmd_result = 1;
+    if (cmd_result != nullptr)
+    {
+      *cmd_result = 0x01;
+    }
   }
   else
   {
     Serial.println(F("TX FAIL"));
     Serial.println(resp.getDeliveryStatus(), HEX);
-
+    if (cmd_result != nullptr)
+    {
+      *cmd_result = 0x00;
+    }
     if (resp.getFrameId() == zha.cmd_frame_id)
     {
       if (zha.dev_status == DEV_ANN)
@@ -93,19 +99,63 @@ void printDiagnostic(ZBExplicitRxResponse &erx)
     Serial.println(F("Srv"));
   }
   zha.print_payload(erx.getFrameData(), erx.getFrameDataLength());
-
 }
 void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
 {
   // Create a reply packet containing the same data
   Serial.println(F("ZDO Cmd"));
-  printDiagnostic(erx);
-
-  if (erx.getRemoteAddress16() == 0) // Why did I care about this again?
+  if (erx.getDstEndpoint() == 0)
   {
+    if (erx.getClusterId() == ACTIVE_EP_RQST)
+    {
+      // Have to match sequence number in response
+      cmd_result = nullptr;
+      zha.last_seq_id = erx.getFrameData()[erx.getDataOffset()];
+      zha.sendActiveEpResp(zha.last_seq_id);
+    }
+    else if (erx.getClusterId() == SIMPLE_DESC_RQST)
+    {
+      Serial.print("Simple Desc Rqst, Ep: ");
+      // Have to match sequence number in response
+      // Payload is EndPoint
+      // Can this just be regular ep?
+      uint8_t ep_msg = erx.getFrameData()[erx.getDataOffset() + 3];
+      Serial.println(ep_msg, HEX);
+      zha.sendSimpleDescRpt(ep_msg, erx.getFrameData()[erx.getDataOffset()]);
+    }
+    else if (erx.getClusterId() == NODE_DESC_RESP_CMD)
+    {
+      Serial.println(F("Node Desc Rsp"));
+    }
+    else if (erx.getClusterId() == IEEE_ADDR_RESP_CMD)
+    {
+      Serial.println(F("IEEE Rsp"));
+    }
+    else if (erx.getClusterId() == DEV_ANN_CMD)
+    {
+      Serial.println(F("R Derv An"));
+    }
+
+    else
+    {
+      zha.print_payload(erx.getFrameData() + erx.getDataOffset(), erx.getDataLength());
+      Serial.print(F("ZDO: EP: "));
+      Serial.print(erx.getDstEndpoint());
+      Serial.print(F(", Clstr: "));
+      Serial.print(erx.getClusterId(), HEX);
+      Serial.println(F(" Cmd Id: "));
+
+      Serial.println(F("Handle Me?"));
+    }
+  }
+
+  else if (erx.getRemoteAddress16() == 0) // Why did I care about this again?
+  {
+    printDiagnostic(erx);
+
     zha.cmd_seq_id = erx.getFrameData()[erx.getDataOffset() + 1];
     Serial.print(F("Cmd Seq: "));
-    Serial.println(zha.cmd_seq_id);
+    Serial.println(zha.cmd_seq_id, HEX);
 
     uint8_t cmd_id = erx.getFrameData()[erx.getDataOffset() + 2];
 
@@ -138,7 +188,7 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
             attribute *attr;
             uint8_t attr_exists = end_point.GetCluster(erx.getClusterId()).GetAttr(&attr, cur_attr_id);
 
-            if(attr_exists)
+            if (attr_exists)
             {
               // Exists
               zha.sendAttributeRsp(erx.getClusterId(), attr, erx.getDstEndpoint(), 0x01, 0x01, zha.cmd_seq_id);
@@ -183,6 +233,38 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
       else if (cmd_id == CFG_RPT)
       {
         Serial.println(F("Cfg Rpt Cmd"));
+        // This works but not using, so commented out to save space
+        // uint8_t len_data = erx.getDataLength() - 3;
+        // uint16_t cur_attr_id;
+        // uint8_t attr_data_type;
+        // uint16_t min_rpt_int;
+        // uint16_t max_rpt_int;
+
+        // Reportable Change Field size is based on the data type
+        // timeout, 2 bytes
+        /*
+        for (uint8_t i = erx.getDataOffset() + 3; i < (len_data + erx.getDataOffset() + 3); i += 2)
+        {
+          cur_attr_id = (erx.getFrameData()[i + 1] << 8) |
+                        (erx.getFrameData()[i] & 0xff);
+          attr_data_type = erx.getFrameData()[i + 2];
+          min_rpt_int = (erx.getFrameData()[i + 4] << 8) |
+                        (erx.getFrameData()[i + 3] & 0xff);
+          max_rpt_int = (erx.getFrameData()[i + 6] << 8) |
+                        (erx.getFrameData()[i + 5] & 0xff);
+
+          Serial.print(F("Attr Id: "));
+          Serial.print(cur_attr_id, HEX);
+          Serial.print(F(" DT: "));
+          Serial.print(attr_data_type, HEX);
+          Serial.print(F(" MinRpt: "));
+          Serial.print(min_rpt_int, HEX);
+          Serial.print(F(" MaxRpt: "));
+          Serial.println(max_rpt_int, HEX);
+
+        }
+        */
+        zha.sendAttributeCfgRptRespAllOk(erx.getClusterId(), erx.getDstEndpoint(), 0x01, zha.cmd_seq_id);
       }
       else
       {
@@ -190,24 +272,6 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
         Serial.print(F("Unsprt Cmd ID: "));
         Serial.println(cmd_id, HEX);
       }
-    }
-    
-    if (erx.getClusterId() == ACTIVE_EP_RQST)
-    {
-      // Have to match sequence number in response
-      cmd_result = NULL;
-      zha.last_seq_id = erx.getFrameData()[erx.getDataOffset()];
-      zha.sendActiveEpResp(zha.last_seq_id);
-    }
-    if (erx.getClusterId() == SIMPLE_DESC_RQST)
-    {
-      Serial.print("Simple Desc Rqst, Ep: ");
-      // Have to match sequence number in response
-      // Payload is EndPoint
-      // Can this just be regular ep?
-      uint8_t ep_msg = erx.getFrameData()[erx.getDataOffset() + 3];
-      Serial.println(ep_msg, HEX);
-      zha.sendSimpleDescRpt(ep_msg, erx.getFrameData()[erx.getDataOffset()]);
     }
   }
   else

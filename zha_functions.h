@@ -167,6 +167,8 @@ public:
 
     Serial.println(F("Actv Ep Resp"));
     this->sendZHACmd(buffer, buffer_len, 0x00, 0x00, ACTIVE_EP_RSP, UKN_NET_ADDR, 0x0000);
+    // If we are here. We are joined enough. move to ready
+    this->dev_status = READY;
   }
 
   void sendDevAnnounce()
@@ -191,7 +193,6 @@ public:
     Serial.println(F("Dev Ann"));
     this->sendZHACmd(buffer, buffer_len, 0x00, 0x00, 0x0013, 0xFFFD, 0x0000);
   }
-
   void sendAttributeRptMult(Cluster *cluster, uint16_t *attr_ids, uint8_t attridlen, uint8_t src_ep, uint8_t dst_ep)
   {
 
@@ -210,10 +211,6 @@ public:
             0x04 Write Attr Response
       **   **
     */
-    //\x18\xA8\x0A ZCL HEADER
-    
-    //\x03\x00\x21\x30\xA8
-    //\x00\x04\x00\x21\x55
     cmd_seq_id++;
 
     uint8_t buffer_len = 3; // 3 byte ZCL header
@@ -447,6 +444,33 @@ public:
       Serial.println(F("Ignored Attr Rsp"));
     }
   }
+  void sendAttributeCfgRptRespAllOk(uint16_t cluster_id, uint8_t src_ep, uint8_t dst_ep, uint8_t rqst_seq_id)
+  {
+    /*
+      Byte 0-2: ZCL Header
+      Byte 3: attr status record
+
+       ** Tested **
+
+    */
+
+    uint8_t buffer_len = 4;
+    uint8_t buffer[buffer_len];
+    this->BuildZCLHeader(buffer, rqst_seq_id, CFG_RPT_RESP, 0x00);
+    // memcpy(buffer + 3, &result, 1);
+    memset(buffer + 3, CMD_SUCCESS, 1);
+
+    cmd_frame_id = xbee.getNextFrameId();
+
+    Serial.print(F("Sent Attr Rpt Cfg Rsp: "));
+    Serial.print(F(" Src EP: "));
+    Serial.print(src_ep);
+    Serial.print(F(" Dst EP: "));
+    Serial.print(dst_ep);
+    Serial.print(F(" Clstr ID: "));
+    Serial.println(cluster_id);
+    this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
+  }
   void sendSimpleDescRpt(uint8_t ep, uint8_t rqst_cmd_seq_id)
   {
     /*
@@ -513,14 +537,9 @@ public:
     Serial.print(F("PLD: "));
     for (uint8_t i = 0; i < len; i++)
     {
-      if (i == 0)
-      {
-        Serial.print(*payload, HEX);
-      }
-      else
-      {
-        Serial.print(*(payload + i), HEX);
-      }
+      Serial.print(F("0x"));
+      Serial.print(*(payload + i), HEX);
+      Serial.print(F(" "));
     }
     Serial.println();
   }
@@ -541,16 +560,6 @@ private:
     Serial.println(lsb, HEX);
   }
 
-  void printPayload(uint8_t *payload, uint8_t len)
-  {
-    Serial.print(F("PYLD: "));
-    for (int i = 0; i < len; i++)
-    {
-      Serial.print(payload[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println();
-  }
 
   bool waitforResponse(uint8_t *val)
   {
@@ -659,7 +668,7 @@ private:
                   uint16_t destination = COORDINATOR_NWK,
                   uint16_t profile_id = HA_PROFILE_ID)
   {
-    printPayload(buffer, buffer_len);
+    print_payload(buffer, buffer_len);
 
     ZBExplicitTxRequest exp_tx = ZBExplicitTxRequest(COORDINATOR64,
                                                      COORDINATOR_NWK,
