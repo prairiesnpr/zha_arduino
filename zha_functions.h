@@ -372,28 +372,7 @@ public:
       this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
     }
   }
-  void sendAttributeRspFail(uint16_t cluster_id, uint16_t attr_id, uint8_t src_ep, uint8_t dst_ep, uint8_t cmd, uint8_t rqst_seq_id, uint8_t reason)
-  {
-    /*
-      payload
-      byte 0-3: ZCL Header
-      byte 3-4: Attr Id
-      byte 5: type
-      bytes6: failure reason
-      -----------------------------
-     ** Tested **
-    */
 
-    uint8_t buffer_len = ZCL_HDR_LEN;
-    uint8_t buffer[buffer_len];
-
-    this->BuildPktStart(buffer, cluster_id, attr_id, cmd, rqst_seq_id, reason, 0x00);
-
-    cmd_frame_id = xbee.getNextFrameId();
-
-    Serial.println(F("Sent Attr Fail Rsp"));
-    this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
-  }
   void sendAttributeRespMult(Cluster *cluster, uint16_t *attr_ids, uint8_t attridlen, uint8_t src_ep, uint8_t dst_ep)
   {
 
@@ -475,56 +454,6 @@ public:
 
     Serial.println(F("Sent Mult Attr Read Resp"));
     this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
-  }
-  void sendAttributeRsp(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep, uint8_t cmd, uint8_t rqst_seq_id)
-  {
-    /*
-      payload
-      byte 0: frame control
-      byte 1 Seq  *Looks like this should match request
-      byte 2 cmd id
-      byte 3-4: Attr Id
-      byte 5: type
-      bytes[] value in little endian
-      -----------------------------
-      CMDS: 0x0A Report Attr
-            0x01 Read Attr Response
-            0x0D Discover Attributes Response
-            0x04 Write Attr Response
-      ** Tested **
-
-    */
-    uint8_t buffer_len = ZCL_HDR_LEN + 1 + attr->val_len;
-    if (attr->type == ZCL_CHAR_STR)
-    {
-      buffer_len++; // Need to add a byte for the length of the string
-    }
-    uint8_t buffer[buffer_len];
-    this->BuildPktStart(buffer, cluster_id, attr->id, cmd, rqst_seq_id, CMD_SUCCESS, 0x00);
-
-    memset(buffer + ZCL_HDR_LEN, attr->type, 1);
-
-    if (attr->type == ZCL_CHAR_STR)
-    {
-      memcpy(buffer + ZCL_HDR_LEN + 1, &attr->val_len, 1); // Need to add the length of the string
-      memcpy(buffer + ZCL_HDR_LEN + 2, attr->value, attr->val_len);
-    }
-    else
-    {
-      memcpy(buffer + ZCL_HDR_LEN + 1, attr->value, attr->val_len);
-    }
-
-    cmd_frame_id = xbee.getNextFrameId();
-
-    if (attr->type != 0)
-    {
-      Serial.println(F("Sent Attr Rsp"));
-      this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
-    }
-    else
-    {
-      Serial.println(F("Ignored Attr Rsp"));
-    }
   }
 
   void sendAttributeCfgRptResp(
