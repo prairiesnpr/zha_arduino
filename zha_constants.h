@@ -30,6 +30,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define DEV_ANN_CMD 0x0013
 
 #define READ_ATTRIBUTES 0x00
+#define READ_ATTRIBUTES_RESP 0x01
 #define DEF_RESP 0x0B
 #define WRITE_ATTRIBUTES 0x02
 #define REPORT_ATTRIBUTES 0x0a
@@ -65,11 +66,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 
 // Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
-#define RMS_CURRENT 0x0508
-#define AC_FREQUENCY 0x0300
-#define AC_FREQUENCY_MAX 0x0302
-#define RMS_VOLTAGE 0x0505
-#define RMS_VOLTAGE_MAX 0x0507
+
 #define MEASUREMENT_TYPE 0x0000
 #define MANUFACTURER_ATTR 0x0004
 #define MODEL_ATTR 0x0005
@@ -88,10 +85,27 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define NUM_OF_STATES 0x004A
 #define DESCRIPTION_ATTR 0x001C
 #define STATE_TEXT_ATTR 0x000E
+
+//Energy
+#define ACTIVE_POWER_ATTR 0x050b //int16
+#define REACTIVE_POWER_ATTR 0x050e //int16
+#define APPARENT_POWER_ATTR 0x050f //uint16
+#define POWER_FACTOR_ATTR 0x0510 //int8
+#define AC_FREQUENCY_ATTR 0x0300 //uint16
+#define RMS_VOLTAGE_ATTR 0x0505 //uint16
+#define RMS_CURRENT_ATTR 0x0508 //uint16
+
+#define AC_FREQUENCY_MAX 0x0302
+#define RMS_VOLTAGE_MAX 0x0507
+
+
+
+
 // Output
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
 
 // Data Types
+#define ZCL_INT8_T 0x28
 #define ZCL_INT16_T 0x29 // Signed Analog
 #define ZCL_CHAR_STR 0x42
 #define ZCL_UINT8_T 0x20
@@ -266,7 +280,6 @@ public:
       {
         *attr = &this->attributes[i];
         return 0x01;
-        //return &attributes[i];
       }
     }
     Serial.print(F("Attr Not Found: "));

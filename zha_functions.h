@@ -211,6 +211,7 @@ public:
             0x04 Write Attr Response
       **   **
     */
+
     cmd_seq_id++;
 
     uint8_t buffer_len = 3; // 3 byte ZCL header
@@ -393,7 +394,88 @@ public:
     Serial.println(F("Sent Attr Fail Rsp"));
     this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
   }
+  void sendAttributeRespMult(Cluster *cluster, uint16_t *attr_ids, uint8_t attridlen, uint8_t src_ep, uint8_t dst_ep)
+  {
 
+    /*
+      payload
+      byte 0: frame control
+      byte 1 Seq  *Looks like this should match request
+      byte 2 cmd id
+      byte 3-4: Attr Id
+      byte 5: type
+      bytes[] value in little endian
+      -----------------------------
+      CMDS: 0x0A Report Attr
+            0x01 Read Attr Response
+            0x0D Discover Attributes Response
+            0x04 Write Attr Response
+      ** Tested **
+    */
+    uint8_t buffer_len = 3; // 3 byte ZCL header
+
+    uint8_t header_buffer[3];
+
+    this->BuildZCLHeader(header_buffer, cmd_seq_id, READ_ATTRIBUTES_RESP);
+
+    for (uint8_t i = 0; i < attridlen; i++)
+    {
+      uint8_t attr_rpt_len = 3; // 2 bytes for attrid + 1 byte for status
+      attribute *attr;
+      uint8_t attr_exists = cluster->GetAttr(&attr, attr_ids[i]);
+      if (attr_exists)
+      {
+        attr_rpt_len += 1;             // 1 byte for data type
+        attr_rpt_len += attr->val_len; // x bytes for value
+      }
+      buffer_len += attr_rpt_len;
+    }
+
+    uint8_t buffer[buffer_len];
+    memset(buffer, 0x00, buffer_len);
+    memcpy(buffer, header_buffer, 3);
+    uint8_t bufpos = 3;
+    for (uint8_t i = 0; i < attridlen; i++)
+    {
+      attribute *attr;
+      uint8_t attr_exists = cluster->GetAttr(&attr, attr_ids[i]);
+      memset(buffer + bufpos, static_cast<uint8_t>((attr->id & 0x00FF) >> 0), 1); // attr id lsb
+      bufpos++;
+      memset(buffer + bufpos, static_cast<uint8_t>((attr->id & 0xFF00) >> 8), 1); // attr id msb
+      bufpos++;
+
+      if (attr_exists)
+      {
+        memset(buffer + bufpos, CMD_SUCCESS, 1); // status
+        bufpos++;
+
+        memset(buffer + bufpos, attr->type, 1); // data type
+        bufpos++;
+
+        if (attr->type == ZCL_CHAR_STR)
+        {
+          memcpy(buffer + bufpos, &attr->val_len, 1); // Need to add the length of the string
+          bufpos++;
+          memcpy(buffer + bufpos + 1, attr->value, attr->val_len);
+          bufpos += attr->val_len;
+        }
+        else
+        {
+          memcpy(buffer + bufpos, attr->value, attr->val_len);
+          bufpos += attr->val_len;
+        }
+      }
+      else
+      {
+        memset(buffer + bufpos, UNSUPPORTED_ATTRIBUTE, 1);
+        bufpos++;
+      }
+    }
+    cmd_frame_id = xbee.getNextFrameId();
+
+    Serial.println(F("Sent Mult Attr Read Resp"));
+    this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
+  }
   void sendAttributeRsp(uint16_t cluster_id, attribute *attr, uint8_t src_ep, uint8_t dst_ep, uint8_t cmd, uint8_t rqst_seq_id)
   {
     /*
@@ -444,6 +526,41 @@ public:
       Serial.println(F("Ignored Attr Rsp"));
     }
   }
+
+  void sendAttributeCfgRptResp(
+      uint16_t cluster_id,
+      uint16_t *attr_ids,
+      uint8_t attridlen,
+      uint8_t src_ep,
+      uint8_t dst_ep,
+      uint8_t rqst_seq_id)
+  {
+    /*
+      Byte 0-2: ZCL Header
+      Byte 3: attr status record
+
+    */
+
+    Serial.print(F("Id cnt: "));
+    Serial.println(attridlen);
+    uint8_t buffer_len = 3 + (4 * attridlen);
+    uint8_t buffer[buffer_len];
+    this->BuildZCLHeader(buffer, rqst_seq_id, CFG_RPT_RESP, 0x00);
+
+    for (uint8_t i = 0; i < attridlen; i++)
+    {
+      memset(buffer + 3 + (i * 4), UNSUPPORTED_ATTRIBUTE, 1); // Not ok
+      memset(buffer + 3 + (i * 4) + 1, 0x00, 1);              // Attrs are reported
+      memcpy(buffer + 3 + (i * 4) + 2, &attr_ids[i], 2);
+    }
+
+    cmd_frame_id = xbee.getNextFrameId();
+
+    Serial.println(F("Sent Attr Rpt Cfg Rsp: "));
+
+    this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster_id, COORDINATOR_NWK, HA_PROFILE_ID);
+  }
+
   void sendAttributeCfgRptRespAllOk(uint16_t cluster_id, uint8_t src_ep, uint8_t dst_ep, uint8_t rqst_seq_id)
   {
     /*
@@ -462,7 +579,7 @@ public:
 
     cmd_frame_id = xbee.getNextFrameId();
 
-    Serial.print(F("Sent Attr Rpt Cfg Rsp: "));
+    Serial.print(F("Sent Attr Rpt Cfg Rsp - OK: "));
     Serial.print(F(" Src EP: "));
     Serial.print(src_ep);
     Serial.print(F(" Dst EP: "));
@@ -559,7 +676,6 @@ private:
     Serial.print(msb, HEX);
     Serial.println(lsb, HEX);
   }
-
 
   bool waitforResponse(uint8_t *val)
   {

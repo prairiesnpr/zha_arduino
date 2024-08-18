@@ -79,6 +79,60 @@ void atCmdResp(AtCommandResponse &resp, uintptr_t)
     Serial.println(F("AT Fail"));
   }
 }
+uint8_t getAttrCfgRecLen(uint8_t direction, uint8_t attr_data_type)
+{
+  uint8_t reclen = 3; // 1 byte for direction, 2 bytes for attrid
+  if (direction == 0x01)
+  {
+    // Serial.println(F("ToSrv"));
+    reclen += 2; // 2 bytes for timeout
+  }
+  else
+  {
+    reclen += 5; // 1 bytes data type, 2 bytes for min rpt int, 2 bytes for max rpt int
+    // Serial.println(F("ToClnt"));
+    if (
+        (attr_data_type > 0x07 && attr_data_type < 0x20) ||
+        (attr_data_type > 0x2f && attr_data_type < 0x38) ||
+        (attr_data_type > 0xe2)
+
+    )
+    {
+      // skip it's discrete
+      // Serial.println(F("discrete"));
+    }
+    else if (attr_data_type > 0x1f && attr_data_type < 0x28)
+    {
+      reclen += (attr_data_type - 0x1f);
+      // Serial.println(F("uint"));
+    }
+    else if (attr_data_type > 0x27 && attr_data_type < 0x30)
+    {
+      reclen += (attr_data_type - 0x27);
+      // Serial.println(F("int"));
+    }
+    else if (attr_data_type == 0x38)
+    {
+      reclen += 2;
+      // Serial.println(F("semi"));
+    }
+    else if (attr_data_type == 0x39)
+    {
+      reclen += 4;
+      // Serial.println(F("single"));
+    }
+    else if (attr_data_type == 0x3a)
+    {
+      reclen += 8;
+      // Serial.println(F("double"));
+    }
+    else
+    {
+      reclen += 2;
+    }
+  }
+  return reclen;
+}
 void printDiagnostic(ZBExplicitRxResponse &erx)
 {
   Serial.print(F("ZDO: EP: "));
@@ -168,38 +222,45 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
     {
       // Handle global commands here
       Serial.println(F("Glbl Cmd"));
+      // This needs redone to send as one response, similar to rpt.
 
       Endpoint end_point = zha.GetEndpoint(erx.getDstEndpoint());
       if (cmd_id == READ_ATTRIBUTES)
       {
+        Serial.println(F("RD Attr Cmd"));
         if (end_point.ClusterExists(erx.getClusterId()))
         {
+          Cluster cluster = end_point.GetCluster(erx.getClusterId());
+
           // Read attributes
-          uint8_t len_data = erx.getDataLength() - 3;
+          uint8_t attr_count = 0;
           uint16_t cur_attr_id;
-          for (uint8_t i = erx.getDataOffset() + 3; i < (len_data + erx.getDataOffset() + 3); i += 2)
+          for (uint8_t i = 3; i < (erx.getDataLength()); i += 2)
           {
-            cur_attr_id = (erx.getFrameData()[i + 1] << 8) |
-                          (erx.getFrameData()[i] & 0xff);
+            cur_attr_id = (erx.getData()[i + 1] << 8) |
+                          (erx.getData()[i] & 0xff);
 
-            Serial.print(F("Rd Att: "));
-            Serial.println(cur_attr_id, HEX);
 
-            attribute *attr;
-            uint8_t attr_exists = end_point.GetCluster(erx.getClusterId()).GetAttr(&attr, cur_attr_id);
-
-            if (attr_exists)
-            {
-              // Exists
-              zha.sendAttributeRsp(erx.getClusterId(), attr, erx.getDstEndpoint(), 0x01, 0x01, zha.cmd_seq_id);
-            }
-            else
-            {
-              // Not found
-              zha.sendAttributeRspFail(erx.getClusterId(), cur_attr_id, erx.getDstEndpoint(), 0x01, 0x01, zha.cmd_seq_id, UNSUPPORTED_ATTRIBUTE);
-            }
-            zha.cmd_seq_id++;
+            attr_count++;
           }
+          uint16_t attr_ids[attr_count] = {};
+          uint8_t attrpos = 0;
+          for (uint8_t i = 3; i < (erx.getDataLength()); i += 2)
+          {
+            cur_attr_id = (erx.getData()[i + 1] << 8) |
+                          (erx.getData()[i] & 0xff);
+
+
+            attr_ids[attrpos] = cur_attr_id;
+            attrpos++;
+          }
+          Serial.print(F("Attr: "));
+          for(uint8_t j = 0; j<attr_count; j++){
+            Serial.print(attr_ids[j], HEX);
+            Serial.print(F(", "));
+          }
+          Serial.println();
+          zha.sendAttributeRespMult(&cluster, attr_ids, attr_count, end_point.id, 1);
         }
         else
         {
@@ -218,7 +279,6 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
       else if (cmd_id == READ_RPT_CFG)
       {
         Serial.println(F("Rd Rpt Cfg"));
-        // READ_RPT_CFG_RESP
         uint8_t len_data = erx.getDataLength() - 3;
         uint16_t attr_rqst[len_data / 2];
         for (uint8_t i = erx.getDataOffset() + 3; i < (len_data + erx.getDataOffset() + 3); i += 2)
@@ -234,37 +294,60 @@ void zdoReceive(ZBExplicitRxResponse &erx, uintptr_t)
       {
         Serial.println(F("Cfg Rpt Cmd"));
         // This works but not using, so commented out to save space
-        // uint8_t len_data = erx.getDataLength() - 3;
-        // uint16_t cur_attr_id;
-        // uint8_t attr_data_type;
-        // uint16_t min_rpt_int;
-        // uint16_t max_rpt_int;
-
-        // Reportable Change Field size is based on the data type
-        // timeout, 2 bytes
+        uint16_t cur_attr_id;
+        uint8_t attr_data_type;
+        uint8_t direction;
         /*
-        for (uint8_t i = erx.getDataOffset() + 3; i < (len_data + erx.getDataOffset() + 3); i += 2)
-        {
-          cur_attr_id = (erx.getFrameData()[i + 1] << 8) |
-                        (erx.getFrameData()[i] & 0xff);
-          attr_data_type = erx.getFrameData()[i + 2];
-          min_rpt_int = (erx.getFrameData()[i + 4] << 8) |
-                        (erx.getFrameData()[i + 3] & 0xff);
-          max_rpt_int = (erx.getFrameData()[i + 6] << 8) |
-                        (erx.getFrameData()[i + 5] & 0xff);
-
-          Serial.print(F("Attr Id: "));
-          Serial.print(cur_attr_id, HEX);
-          Serial.print(F(" DT: "));
-          Serial.print(attr_data_type, HEX);
-          Serial.print(F(" MinRpt: "));
-          Serial.print(min_rpt_int, HEX);
-          Serial.print(F(" MaxRpt: "));
-          Serial.println(max_rpt_int, HEX);
-
-        }
+        uint16_t min_rpt_int;
+        uint16_t max_rpt_int;
         */
-        zha.sendAttributeCfgRptRespAllOk(erx.getClusterId(), erx.getDstEndpoint(), 0x01, zha.cmd_seq_id);
+
+        uint8_t bad_att_count = 0;
+        uint8_t pktpos = 3;
+        while (pktpos < erx.getDataLength())
+        {
+          direction = erx.getData()[pktpos];
+          cur_attr_id = (erx.getData()[pktpos + 2] << 8) |
+                        (erx.getData()[pktpos + 1] & 0xff);
+          attr_data_type = erx.getData()[pktpos + 3];
+          uint8_t rec_length = getAttrCfgRecLen(direction, attr_data_type);
+          pktpos += rec_length;
+          if (!zha.GetEndpoint(erx.getDstEndpoint()).GetCluster(erx.getClusterId()).AttributeExists(cur_attr_id))
+          {
+            bad_att_count++;
+          }
+        }
+
+        uint16_t bad_attr_ids[bad_att_count];
+        bad_att_count = 0;
+        pktpos = 3;
+        Serial.print(F("Unsup Attr: "));
+
+        while (pktpos < erx.getDataLength())
+        {
+          direction = erx.getData()[pktpos];
+          cur_attr_id = (erx.getData()[pktpos + 2] << 8) |
+                        (erx.getData()[pktpos + 1] & 0xff);
+          attr_data_type = erx.getData()[pktpos + 3];
+          uint8_t rec_length = getAttrCfgRecLen(direction, attr_data_type);
+          pktpos += rec_length;
+          if (!zha.GetEndpoint(erx.getDstEndpoint()).GetCluster(erx.getClusterId()).AttributeExists(cur_attr_id))
+          {
+            bad_attr_ids[bad_att_count] = cur_attr_id;
+            bad_att_count++;
+            Serial.print(cur_attr_id, HEX);
+            Serial.print(F(", "));
+          }
+        }
+        Serial.println();
+
+        /*
+                  min_rpt_int = (erx.getFrameData()[i + 4] << 8) |
+                                (erx.getFrameData()[i + 3] & 0xff);
+                  max_rpt_int = (erx.getFrameData()[i + 6] << 8) |
+                                (erx.getFrameData()[i + 5] & 0xff);*/
+
+        zha.sendAttributeCfgRptResp(erx.getClusterId(), bad_attr_ids, bad_att_count, erx.getDstEndpoint(), 0x01, zha.cmd_seq_id);
       }
       else
       {
