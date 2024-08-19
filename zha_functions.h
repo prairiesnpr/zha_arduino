@@ -390,6 +390,7 @@ public:
             0x0D Discover Attributes Response
             0x04 Write Attr Response
       ** Tested **
+      Not working for single missing attributes
     */
     uint8_t buffer_len = 3; // 3 byte ZCL header
 
@@ -404,6 +405,10 @@ public:
       uint8_t attr_exists = cluster->GetAttr(&attr, attr_ids[i]);
       if (attr_exists)
       {
+       if (attr->type == ZCL_CHAR_STR)
+        {
+          attr_rpt_len += 1;             // 1 byte for string length
+        }
         attr_rpt_len += 1;             // 1 byte for data type
         attr_rpt_len += attr->val_len; // x bytes for value
       }
@@ -418,9 +423,9 @@ public:
     {
       attribute *attr;
       uint8_t attr_exists = cluster->GetAttr(&attr, attr_ids[i]);
-      memset(buffer + bufpos, static_cast<uint8_t>((attr->id & 0x00FF) >> 0), 1); // attr id lsb
+      memset(buffer + bufpos, static_cast<uint8_t>((attr_ids[i] & 0x00FF) >> 0), 1); // attr id lsb
       bufpos++;
-      memset(buffer + bufpos, static_cast<uint8_t>((attr->id & 0xFF00) >> 8), 1); // attr id msb
+      memset(buffer + bufpos, static_cast<uint8_t>((attr_ids[i] & 0xFF00) >> 8), 1); // attr id msb
       bufpos++;
 
       if (attr_exists)
@@ -435,7 +440,7 @@ public:
         {
           memcpy(buffer + bufpos, &attr->val_len, 1); // Need to add the length of the string
           bufpos++;
-          memcpy(buffer + bufpos + 1, attr->value, attr->val_len);
+          memcpy(buffer + bufpos, attr->value, attr->val_len);
           bufpos += attr->val_len;
         }
         else
