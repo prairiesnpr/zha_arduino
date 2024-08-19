@@ -149,7 +149,7 @@ public:
       List of active endpoints
       ** Tested **
     */
-    cmd_frame_id = xbee.getNextFrameId();
+     
     uint8_t buffer_len = 5 + num_endpoints;
 
     uint8_t buffer[buffer_len];
@@ -253,9 +253,7 @@ public:
         bufpos += (attr->val_len);
       }
     }
-    this->print_payload(buffer, buffer_len);
-
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     Serial.println(F("Sent Mult Attr Rpt"));
     this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
@@ -298,7 +296,7 @@ public:
     {
       memcpy(buffer + ZCL_HDR_LEN, attr->value, attr->val_len);
     }
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     if (attr->type != 0)
     {
@@ -328,7 +326,7 @@ public:
     memcpy(buffer + 3, &result, 1);
     memset(buffer + 4, CMD_SUCCESS, 1);
 
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     if (attr->type != 0)
     {
@@ -358,7 +356,7 @@ public:
     // memcpy(buffer + 3, &result, 1);
     memset(buffer + 3, CMD_SUCCESS, 1);
 
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     if (attr->type != 0)
     {
@@ -455,7 +453,7 @@ public:
         bufpos++;
       }
     }
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     Serial.println(F("Sent Mult Attr Read Resp"));
     this->sendZHACmd(buffer, buffer_len, src_ep, dst_ep, cluster->id, COORDINATOR_NWK, HA_PROFILE_ID);
@@ -488,7 +486,7 @@ public:
       memcpy(buffer + 3 + (i * 4) + 2, &attr_ids[i], 2);
     }
 
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     Serial.println(F("Sent Attr Rpt Cfg Rsp: "));
 
@@ -511,7 +509,7 @@ public:
     // memcpy(buffer + 3, &result, 1);
     memset(buffer + 3, CMD_SUCCESS, 1);
 
-    cmd_frame_id = xbee.getNextFrameId();
+    
 
     Serial.print(F("Sent Attr Rpt Cfg Rsp - OK: "));
     Serial.print(F(" Src EP: "));
@@ -541,7 +539,7 @@ public:
       ** Tested  **
     */
 
-    cmd_frame_id = xbee.getNextFrameId();
+    
     uint8_t buffer_len = 11;
 
     uint8_t in_len = 2 * endpoints[(ep - 1)].GetNumInClusters();
@@ -718,7 +716,7 @@ private:
                   uint16_t destination = COORDINATOR_NWK,
                   uint16_t profile_id = HA_PROFILE_ID)
   {
-    print_payload(buffer, buffer_len);
+    cmd_frame_id = xbee.getNextFrameId();
 
     ZBExplicitTxRequest exp_tx = ZBExplicitTxRequest(COORDINATOR64,
                                                      COORDINATOR_NWK,

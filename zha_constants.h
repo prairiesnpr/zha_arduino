@@ -5,7 +5,6 @@
 // Used to keep SRAM down
 #define ZCL_HDR_LEN 6
 
-
 // Device Type
 constexpr uint8_t MAINS_PWR_DEV = 0x8c;
 
@@ -44,25 +43,24 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ATTR_RSP_CMD 0x0b
 
 // Input Clusters
-#define BASIC_CLUSTER_ID 0x0000 //server
+#define BASIC_CLUSTER_ID 0x0000 // server
 #define IDENTIFY_CLUSTER_ID 0x0003
-#define GROUPS_CLUSTER_ID 0x0004 //server
-#define SCENES_CLUSTER_ID 0x0005 //server
-#define ON_OFF_CLUSTER_ID 0x0006 //server
-#define ON_OF_SWITCH_CLUSTER_ID 0x0007 //server
-#define LEVEL_CONTROL_CLUSTER_ID 0x0008 //server
+#define GROUPS_CLUSTER_ID 0x0004        // server
+#define SCENES_CLUSTER_ID 0x0005        // server
+#define ON_OFF_CLUSTER_ID 0x0006        // server
+#define ON_OF_SWITCH_CLUSTER_ID 0x0007  // server
+#define LEVEL_CONTROL_CLUSTER_ID 0x0008 // server
 #define LIGHT_LINK_CLUSTER_ID 0x1000
-#define TEMP_CLUSTER_ID 0x0402 //server
-#define HUMIDITY_CLUSTER_ID 0x405 //server
-#define BINARY_INPUT_CLUSTER_ID 0x000f //server
-#define IAS_ZONE_CLUSTER_ID 0x0500 //server
-#define METERING_CLUSTER_ID 0x0702 // Smart Energy Metering //server
-#define COLOR_CLUSTER_ID 0x0300 //server
-#define ELECTRICAL_MEASUREMENT 0x0b04 //server
-#define ANALOG_IN_CLUSTER_ID 0x000c //server
-#define ANALOG_OUT_CLUSTER_ID 0x000d //server
-#define MULTISTATE_IN_CLUSTER_ID 0x0012 //server 
-
+#define TEMP_CLUSTER_ID 0x0402          // server
+#define HUMIDITY_CLUSTER_ID 0x405       // server
+#define BINARY_INPUT_CLUSTER_ID 0x000f  // server
+#define IAS_ZONE_CLUSTER_ID 0x0500      // server
+#define METERING_CLUSTER_ID 0x0702      // Smart Energy Metering //server
+#define COLOR_CLUSTER_ID 0x0300         // server
+#define ELECTRICAL_MEASUREMENT 0x0b04   // server
+#define ANALOG_IN_CLUSTER_ID 0x000c     // server
+#define ANALOG_OUT_CLUSTER_ID 0x000d    // server
+#define MULTISTATE_IN_CLUSTER_ID 0x0012 // server
 
 // Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
@@ -86,20 +84,32 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define DESCRIPTION_ATTR 0x001C
 #define STATE_TEXT_ATTR 0x000E
 
-//Energy
-#define ACTIVE_POWER_ATTR 0x050b //int16
-#define REACTIVE_POWER_ATTR 0x050e //int16
-#define APPARENT_POWER_ATTR 0x050f //uint16
-#define POWER_FACTOR_ATTR 0x0510 //int8
-#define AC_FREQUENCY_ATTR 0x0300 //uint16
-#define RMS_VOLTAGE_ATTR 0x0505 //uint16
-#define RMS_CURRENT_ATTR 0x0508 //uint16
+// Energy
+#define ACTIVE_POWER_ATTR 0x050b   // int16
+#define REACTIVE_POWER_ATTR 0x050e // int16
+#define APPARENT_POWER_ATTR 0x050f // uint16
+#define POWER_FACTOR_ATTR 0x0510   // int8
+#define AC_FREQUENCY_ATTR 0x0300   // uint16
+#define RMS_VOLTAGE_ATTR 0x0505    // uint16
+#define RMS_CURRENT_ATTR 0x0508    // uint16
 
+// Energy MinMax
+#define ACTIVE_POWER_MIN 0x050c
+#define ACTIVE_POWER_MAX 0x050d
 #define AC_FREQUENCY_MAX 0x0302
 #define RMS_VOLTAGE_MAX 0x0507
 
-
-
+// Energy scaling
+#define AC_FREQUENCY_MULTIPLIER 0x0400 // uint16
+#define AC_FREQUENCY_DIVISOR 0x0401    // uint16
+#define POWER_MULTIPLIER 0x0402        // uint32
+#define POWER_DIVISOR 0x0403           // uint32
+#define AC_VOLTAGE_MULTIPLIER 0x0600   // uint16
+#define AC_VOLTAGE_DIVISOR 0x0601      // uint16
+#define AC_CURRENT_MULTIPLIER 0x0602   // uint16
+#define AC_CURRENT_DIVISOR 0x0603      // uint16
+#define AC_POWER_MULTIPLIER 0x0604     // uint16
+#define AC_POWER_DIVISOR 0x0605        // uint16
 
 // Output
 #define OTA_CLUSTER_ID 0x0019 // Upgrade
@@ -117,7 +127,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ZCL_MAP16 0x19
 #define ZCL_MAP32 0x1b
 #define ZCL_SINGLE 0x39
-#define ZCL_ARRAY 0x48  //Length 2+sum of length of contents , first element is 2byte uint for num elements 
+#define ZCL_ARRAY 0x48 // Length 2+sum of length of contents , first element is 2byte uint for num elements
 
 // Device
 #define ON_OFF_LIGHT 0x0100
@@ -245,7 +255,6 @@ public:
     this->SetValue(int_res);
   }
 };
-
 
 class Cluster
 {
@@ -403,4 +412,3 @@ public:
     return dev_type;
   }
 };
-
