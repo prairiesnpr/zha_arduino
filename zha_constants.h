@@ -61,6 +61,7 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ANALOG_IN_CLUSTER_ID 0x000c     // server
 #define ANALOG_OUT_CLUSTER_ID 0x000d    // server
 #define MULTISTATE_IN_CLUSTER_ID 0x0012 // server
+#define PRESSURE_CLUSTER_ID 0x0403
 
 // Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
