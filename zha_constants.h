@@ -62,6 +62,8 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define ANALOG_OUT_CLUSTER_ID 0x000d    // server
 #define MULTISTATE_IN_CLUSTER_ID 0x0012 // server
 #define PRESSURE_CLUSTER_ID 0x0403
+#define ILLUMINANCE_MEASUREMENT_CLUSTER_ID 0x0400
+#define POWER_CONFIGURATION_CLUSTER_ID 0x0001 // Need to have the Xbee in End device mode
 
 // Attr id
 #define INSTANTANEOUS_DEMAND 0x0400
@@ -84,6 +86,8 @@ constexpr uint16_t HA_PROFILE_ID = 0x0104;
 #define NUM_OF_STATES 0x004A
 #define DESCRIPTION_ATTR 0x001C
 #define STATE_TEXT_ATTR 0x000E
+#define BATTERY_VOLTAGE 0x0020
+#define BATTERY_PERCENTAGE_REMAINING 0x0021
 
 // Energy
 #define ACTIVE_POWER_ATTR 0x050b   // int16
