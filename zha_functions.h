@@ -625,8 +625,8 @@ private:
             {
               val[i] = atResponse.getValue()[i];
             }
-            return 1;
           }
+          return 1;
         }
         else
         {
